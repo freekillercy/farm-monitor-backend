@@ -1,78 +1,94 @@
 package com.farmmonitorbackend.controllers;
 
+import com.farmmonitorbackend.exceptions.UserAlreadyExistsException;
+import com.farmmonitorbackend.exceptions.UserNotFoundException;
 import com.farmmonitorbackend.models.User;
 import com.farmmonitorbackend.models.UserDTO;
+import com.farmmonitorbackend.services.HttpService;
 import com.farmmonitorbackend.services.UserService;
+import com.farmmonitorbackend.utils.UserUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 
 @RestController()
-@RequestMapping("/user")
+@RequestMapping("/api/user")
 public class UserController {
 
     @Autowired
     UserService service;
 
+    @Autowired
+    HttpService httpService;
+
     @PostMapping("/create")
-    private ResponseEntity<Object> createUser(@RequestBody User user) {
-        try{
-            User newUser = service.createUser(user);
-            return ResponseEntity.ok().body(new UserDTO(newUser.getEmail(), newUser.getRoles()));
-        }
-        catch(IllegalArgumentException e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
+    public ResponseEntity<Object> createUser(@RequestBody UserDTO userDto) {
+        try {
+            if (service.getUserByEmail(userDto.getEmail()).isEmpty()) {
+                User user = UserUtils.userDTOToUser(userDto);
+                UserDTO newUser = UserUtils.userToUserDTO(service.createUser(user));
+                return httpService.sendResponse(HttpStatus.OK, newUser);
+            } else {
+                throw new UserAlreadyExistsException(userDto.getEmail());
+            }
+        } catch (UserAlreadyExistsException | IllegalArgumentException e) {
+            return httpService.sendResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }
 
     @PutMapping("/update")
-    private ResponseEntity<Object> updateUser(@RequestBody User user) {
-        /*try{
-            if (service.getUserByEmail(user.getEmail()).isEmpty()) {
-                return ResponseEntity.badRequest().body("User not found.");
+    public ResponseEntity<Object> updateUser(@RequestBody UserDTO userDto) {
+        try {
+            Optional<User> optionalUser = service.getUserByEmail(userDto.getEmail());
+            if (optionalUser.isPresent()) {
+                User userToUpdate = UserUtils.userDTOToUser(userDto);
+                userToUpdate.setId(optionalUser.get().getId());
+
+                UserDTO newUser = UserUtils.userToUserDTO(service.updateUser(userToUpdate));
+                return httpService.sendResponse(HttpStatus.OK, newUser);
+            } else {
+                throw new UserNotFoundException(userDto.getEmail());
             }
-            else {
-                User newUser = service.createUser(user);
-                return ResponseEntity.ok().body(new UserDTO(newUser.getEmail(), newUser.getRoles()));
-            }
+        } catch (UserNotFoundException e) {
+            return httpService.sendResponse(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return httpService.sendResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        catch (IllegalArgumentException e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
-        }*/
-        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/get")
-    private ResponseEntity<User> getUserByEmail(@RequestBody String email) {
-        /*Optional<User> optionalUser = service.getUserByEmail(email);
-
-        return optionalUser.isPresent() ?
-                ResponseEntity.ok().body(optionalUser.get()):
-                ResponseEntity.notFound().build();*/
-        User user = service.getUserByEmail(email);
-        return ResponseEntity.ok().body(user);
-
+    public ResponseEntity<Object> getUserByEmail(@RequestBody String email) {
+        try {
+            Optional<User> optionalUser = service.getUserByEmail(email);
+            if (optionalUser.isPresent()) {
+                return httpService.sendResponse(HttpStatus.OK, UserUtils.userToUserDTO(optionalUser.get()));
+            } else {
+                throw new UserNotFoundException(email);
+            }
+        } catch (UserNotFoundException e) {
+            return httpService.sendResponse(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return httpService.sendResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     @DeleteMapping("/delete")
-    private ResponseEntity<String> deleteUser(@RequestBody String email) {
-        /*try{
-            User user = service.getUserByEmail(email);
-            if (optionalUser.isEmpty()) {
-                return ResponseEntity.badRequest().body("User not found.");
-            }
-            else {
+    public ResponseEntity<Object> deleteUser(@RequestBody String email) {
+        try {
+            Optional<User> optionalUser = service.getUserByEmail(email);
+            if (optionalUser.isPresent()) {
                 service.deleteUser(optionalUser.get().getId());
-                return ResponseEntity.ok().build();
+                return httpService.sendResponse(HttpStatus.OK, "User successfully deleted!");
+            } else {
+                throw new UserNotFoundException(email);
             }
+        } catch (UserNotFoundException e) {
+            return httpService.sendResponse(HttpStatus.NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return httpService.sendResponse(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
         }
-        catch (IllegalArgumentException e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
-        }*/
-        //return ResponseEntity.ok().body(service.getUserByEmail(email));
-        return ResponseEntity.ok().build();
     }
-
 }
