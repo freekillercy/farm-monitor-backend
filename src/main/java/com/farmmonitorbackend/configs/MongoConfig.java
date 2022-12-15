@@ -1,13 +1,17 @@
-package com.farmmonitorbackend.configuration;
+package com.farmmonitorbackend.configs;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
+import org.springframework.data.mongodb.core.mapping.event.ValidatingMongoEventListener;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 @Configuration
-public class ConnectionDB {
+@ComponentScan
+public class MongoConfig {
 
     @Bean
     public MongoDatabaseFactory mongoDatabaseFactory() {
@@ -19,4 +23,8 @@ public class ConnectionDB {
         return new MongoTemplate(mongoDatabaseFactory());
     }
 
+    @Bean
+    public ValidatingMongoEventListener validatingMongoEventListener(LocalValidatorFactoryBean factoryBean) {
+        return new ValidatingMongoEventListener(factoryBean);
+    }
 }
